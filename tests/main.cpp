@@ -26,7 +26,7 @@ int main(int argc, char** args) {
     return -1; 
   }
   // Create a context; this is our main handle to the Framework
-  ApplicationContext context; 
+  ApplicationContext context;
 
   // Create a GraphicsDisplay (a.k.a Window) by sending a request to our context
   // note that we are loading our window settings from an XML file
@@ -58,13 +58,14 @@ int main(int argc, char** args) {
   AssetLoader::LoadShader("PointLight", "lightPass.vs", "lightPass.fs");
   AssetLoader::LoadShader("AmbientLight", "lightPass.vs", "ambientLightPass.fs");
   AssetLoader::LoadShader("Hdr", "ReinhardToneMap.vs", "ReinhardToneMap.fs");
-  AssetLoader::LoadMesh("Plane", "primitives/Plane.obj");
-  AssetLoader::LoadMesh("Sphere", "primitives/UVSphere.obj");
+  AssetLoader::LoadMesh("Plane", "Terrain2.obj");
+  AssetLoader::LoadMesh("Sphere", "primitives/ICOSphere.obj");
   AssetLoader::LoadMesh("LightVolume", "primitives/ICOSphere.obj");
-  AssetLoader::LoadTexture("Debug", "Debug.png");
-  AssetLoader::LoadTexture("Bricks", "White.png", TextureType::Texture2D, GL_LINEAR_MIPMAP_LINEAR);
+  AssetLoader::LoadTexture("Debug", "White.png");
+  AssetLoader::LoadTexture("Bricks", "Bricks.jpg", TextureType::Texture2D, GL_LINEAR_MIPMAP_LINEAR);
   AssetLoader::LoadTexture("BricksNRM", "NormalMap.jpg", TextureType::Texture2D, GL_LINEAR_MIPMAP_LINEAR);
-  
+  AssetLoader::LoadTexture("DefaultNRM", "DefaultNormalMap.jpg", TextureType::Texture2D, GL_LINEAR_MIPMAP_LINEAR);
+
   // Get some resource handles to avoid table lookup time (you should do this)
   auto& hdrShader =                 AssetLoader::Shader("Hdr");
   auto& ambientLightPassShader =    AssetLoader::Shader("AmbientLight");
@@ -76,6 +77,7 @@ int main(int argc, char** args) {
   auto& debugTexture =              AssetLoader::Texture("Debug");
   auto& bricksTexture =             AssetLoader::Texture("Bricks");
   auto& bricksNRMTexture =          AssetLoader::Texture("BricksNRM"); 
+  auto& defaultNRMTexture =          AssetLoader::Texture("DefaultNRM"); 
 
   // Let's define a quad so we can render it to the screen
   // ( for deferred rendering and tone mapping )
@@ -111,8 +113,9 @@ int main(int argc, char** args) {
   GBuffer gBuffer(display->GetWidth(), display->GetHeight());
 
   // Create a Material object, storing the object's data about shininess, ...
-  Material matbricks =
-    Material(TextureMap(), 20.0f, glm::vec3(1, 0.727811, 0.633));
+  Material matbricks { TextureMap(), 20.0f, glm::vec3(1, 0.727811, 0.633) };
+  Material matsphere { TextureMap("assets/iamges/White.png", "assets/images/RedBricksNormal.jpg"), 50.0f, glm::vec3(1, 1, 1) };
+
 
   // Create a 3D object; the engine refers to those objects as Spatials;
   // Essentially, they store texture, vertex, and transform data.
@@ -120,29 +123,55 @@ int main(int argc, char** args) {
   // can be seen as an entity in the engine).
   Spatial spatial(terrain.get());
   spatial.SetMaterial(matbricks);
-  spatial.SetScale(glm::vec3(40.0, 40.0, 40.0));
+  spatial.SetScale(glm::vec3(5.0, 5.0, 5.0));
   Spatial lightInd(mini_terrain.get());
-  lightInd.SetMaterial(matbricks);
-  lightInd.SetPosition(glm::vec3(0.0f, 20.0f, 0.0f));
-  lightInd.SetScale(glm::vec3(5.0f, 5.0f, 5.0f));
+
+  lightInd.SetMaterial(matsphere);
+  lightInd.SetPosition(glm::vec3(0.0f, 5.0f, 0.0f));
+  lightInd.SetScale(glm::vec3(4.0f, 4.0f, 4.0f));
+  lightInd.SetRotation(glm::vec3(0.0f, 00.0f, 0.0f));
 
   // Create a PointLight !
   PointLight pointlight;
   pointlight.SetPosition(glm::vec3(0.0, 6.0, 0.0));
-  pointlight.SetIntensity(glm::vec3(10.0f, 10.0f, 10.0f));
+  pointlight.SetIntensity(glm::vec3(10.0f/2, 10.0f/2, 30.0f/2));
   pointlight.SetAmbientCoefficient(0.000f);
+
+  PointLight pointlight2;
+  pointlight2.SetPosition(glm::vec3(12.0, 3.0, 0.0));
+  pointlight2.SetIntensity(glm::vec3(15.0f/2, 15.0f/2, 20.0f/2));
+  pointlight2.SetAmbientCoefficient(0.000f);
+
+  PointLight pointlight3;
+  pointlight3.SetPosition(glm::vec3(-12.0, 3.0, -12.0));
+  pointlight3.SetIntensity(glm::vec3(25.0f / 2, 12.0f / 2, 10.0f / 2));
+  pointlight3.SetAmbientCoefficient(0.000f);
+
+  PointLight pointlight4;
+  pointlight4.SetPosition(glm::vec3(-12.0, 3.0, 0.0));
+  pointlight4.SetIntensity(glm::vec3(8.0f / 2, 12.0f / 2, 25.0f / 2));
+  pointlight4.SetAmbientCoefficient(0.000f);
 
   // Specify the attenuation factors of that pointlight !
   Attenuation attenuation;
   attenuation.linear = 0.032f;
   attenuation.constant = 5.0f;
   attenuation.exponential = 0.09f;
+  
   pointlight.SetAttenuation(attenuation);
+  pointlight2.SetAttenuation(attenuation);
+  pointlight3.SetAttenuation(attenuation);
+  pointlight4.SetAttenuation(attenuation);
 
   // Let's put our light in an array (for multiple lights)
-  static const unsigned NUM_LIGHTS = 1;
+  static const unsigned NUM_LIGHTS = 4;
   PointLight pointLights[NUM_LIGHTS];
   pointLights[0] = pointlight;
+  pointLights[1] = pointlight2;
+  pointLights[2] = pointlight3;
+  pointLights[4] = pointlight4;
+
+
 
   // Enable Cullface-ing (for performance)
   gl4::FaceCullState::SwitchState(true);
@@ -166,12 +195,17 @@ int main(int argc, char** args) {
     
     // Update the position of our camera bounding sphere
     camViewBoundSphere = BoundingSphere(camera->GetPosition(), camera->GetNearPlane());
+        
+    // Update the position of the light indicator
+   //  lightInd.SetPosition(pointLights[0].GetPosition() + glm::vec3(0.0, 2.0, 0.0));
+
     },
     [&]() {
     // Render entities attached to our context (window, etc..)
     context.RenderEntities();
     // Bind viewport uniforms
     context.BindViewportUniforms();
+
 
     // Start 1st frame of our GBuffer
     gBuffer.StartFrame();
@@ -226,6 +260,10 @@ int main(int argc, char** args) {
     matbricks.SetUniforms(geometryPassShader.get());
     debugTexture->Bind(0);
     glUniform1i(geometryPassShader->GetUniformLocation("diffuseMap"), 0);
+    
+    defaultNRMTexture->Bind(1);
+    glUniform1i(geometryPassShader->GetUniformLocation("normalMap"), 1);
+
     mini_terrain->Render();
 
     // Light pass preparation:
